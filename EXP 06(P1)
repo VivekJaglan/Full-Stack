@@ -1,1 +1,82 @@
+Step 1: Initialize the Project
 
+Run the following commands:
+
+mkdir middleware-auth-app
+cd middleware-auth-app
+npm init -y
+npm install express
+
+🧠 Step 2: Create server.js
+// server.js
+const express = require('express');
+const app = express();
+
+// ----------------------
+// Middleware 1: Logger
+// ----------------------
+const loggerMiddleware = (req, res, next) => {
+  const currentTime = new Date().toISOString();
+  console.log(`[${currentTime}] ${req.method} ${req.url}`);
+  next(); // Move to the next middleware or route
+};
+
+// Apply logger globally
+app.use(loggerMiddleware);
+
+// ----------------------
+// Middleware 2: Bearer Token Auth
+// ----------------------
+const authMiddleware = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Missing Authorization header' });
+  }
+
+  // Expected format: "Bearer mysecrettoken"
+  const token = authHeader.split(' ')[1];
+
+  if (token !== 'mysecrettoken') {
+    return res.status(403).json({ error: 'Invalid or missing token' });
+  }
+
+  // If valid, proceed to protected route
+  next();
+};
+
+// ----------------------
+// Routes
+// ----------------------
+
+// Public Route
+app.get('/public', (req, res) => {
+  res.json({ message: 'Welcome to the public route — no token needed!' });
+});
+
+// Protected Route
+app.get('/protected', authMiddleware, (req, res) => {
+  res.json({ message: 'Access granted to protected route!' });
+});
+
+// ----------------------
+// Start Server
+// ----------------------
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+});
+
+🚀 Step 3: Run the Server
+node server.js
+
+🧪 Step 4: Test with curl or Postman
+✅ Public Route (No Token Needed)
+curl http://localhost:3000/public
+
+
+Response:
+
+{
+  "message": "Welcome to the public route — no token needed!"
+}
