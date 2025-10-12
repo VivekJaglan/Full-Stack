@@ -1,1 +1,78 @@
+1. Model: models/Student.js
+const mongoose = require('mongoose');
 
+// Define schema
+const studentSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Student name is required'],
+    trim: true
+  },
+  age: {
+    type: Number,
+    required: [true, 'Age is required'],
+    min: [1, 'Age must be greater than 0']
+  },
+  course: {
+    type: String,
+    required: [true, 'Course is required'],
+    trim: true
+  }
+}, { timestamps: true });
+
+// Create model
+const Student = mongoose.model('Student', studentSchema);
+
+module.exports = Student;
+
+2.Controller: controllers/studentController.js
+const Student = require('../models/Student');
+
+// CREATE a student
+exports.createStudent = async (req, res) => {
+  try {
+    const { name, age, course } = req.body;
+    const student = new Student({ name, age, course });
+    await student.save();
+    res.status(201).json({ message: 'Student added successfully', student });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// READ all students
+exports.getAllStudents = async (req, res) => {
+  try {
+    const students = await Student.find();
+    res.json(students);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// UPDATE student by ID
+exports.updateStudent = async (req, res) => {
+  try {
+    const { name, age, course } = req.body;
+    const updatedStudent = await Student.findByIdAndUpdate(
+      req.params.id,
+      { name, age, course },
+      { new: true, runValidators: true }
+    );
+    if (!updatedStudent) return res.status(404).json({ message: 'Student not found' });
+    res.json({ message: 'Student updated successfully', updatedStudent });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// DELETE student by ID
+exports.deleteStudent = async (req, res) => {
+  try {
+    const deletedStudent = await Student.findByIdAndDelete(req.params.id);
+    if (!deletedStudent) return res.status(404).json({ message: 'Student not found' });
+    res.json({ message: 'Student deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
