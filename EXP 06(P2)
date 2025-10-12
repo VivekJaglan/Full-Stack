@@ -1,1 +1,172 @@
+Step 1: Initialize the Project
 
+Run these commands in your terminal:
+
+mkdir jwt-banking-api
+cd jwt-banking-api
+npm init -y
+npm install express jsonwebtoken body-parser
+
+🧠 Step 2: Create server.js
+// server.js
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const bodyParser = require('body-parser');
+
+const app = express();
+app.use(bodyParser.json());
+
+// Secret key for signing JWTs
+const JWT_SECRET = 'myjwtsecretkey';
+
+// Dummy user credentials
+const USER = {
+  username: 'vivek',
+  password: '12345'
+};
+
+// Dummy bank account (for simulation)
+let account = {
+  balance: 1000
+};
+
+// -----------------------------------------
+// Middleware: Verify JWT Token
+// -----------------------------------------
+function verifyToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+
+  if (!authHeader)
+    return res.status(401).json({ error: 'Missing Authorization header' });
+
+  const token = authHeader.split(' ')[1];
+  if (!token)
+    return res.status(401).json({ error: 'Bearer token not found' });
+
+  // Verify token
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err)
+      return res.status(403).json({ error: 'Invalid or expired token' });
+
+    req.user = decoded; // Attach decoded user data to request
+    next();
+  });
+}
+
+// -----------------------------------------
+// Route: Login (Generate JWT)
+// -----------------------------------------
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+
+  // Validate credentials
+  if (username === USER.username && password === USER.password) {
+    const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: '1h' });
+    return res.json({
+      message: 'Login successful!',
+      token
+    });
+  }
+
+  res.status(401).json({ error: 'Invalid username or password' });
+});
+
+// -----------------------------------------
+// Protected Routes (Require Token)
+// -----------------------------------------
+
+// Get Account Balance
+app.get('/balance', verifyToken, (req, res) => {
+  res.json({ balance: account.balance });
+});
+
+// Deposit Money
+app.post('/deposit', verifyToken, (req, res) => {
+  const { amount } = req.body;
+
+  if (!amount || amount <= 0)
+    return res.status(400).json({ error: 'Invalid deposit amount' });
+
+  account.balance += amount;
+  res.json({ message: `Deposited ₹${amount}`, newBalance: account.balance });
+});
+
+// Withdraw Money
+app.post('/withdraw', verifyToken, (req, res) => {
+  const { amount } = req.body;
+
+  if (!amount || amount <= 0)
+    return res.status(400).json({ error: 'Invalid withdrawal amount' });
+
+  if (amount > account.balance)
+    return res.status(400).json({ error: 'Insufficient balance' });
+
+  account.balance -= amount;
+  res.json({ message: `Withdrew ₹${amount}`, newBalance: account.balance });
+});
+
+// -----------------------------------------
+// Start Server
+// -----------------------------------------
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+});
+
+🚀 Step 3: Run the Server
+node server.js
+
+🧪 Step 4: Test the API with Postman or curl
+1️⃣ Login to Get Token
+
+Request
+
+curl -X POST http://localhost:3000/login \
+-H "Content-Type: application/json" \
+-d '{"username": "vivek", "password": "12345"}'
+
+
+Response
+
+{
+  "message": "Login successful!",
+  "token": "eyJhbGciOiJIUzI1NiIsInR..."
+}
+
+2️⃣ Get Balance (Protected)
+curl -H "Authorization: Bearer YOUR_TOKEN_HERE" http://localhost:3000/balance
+
+
+Response
+
+{
+  "balance": 1000
+}
+
+3️⃣ Deposit Money
+curl -X POST http://localhost:3000/deposit \
+-H "Authorization: Bearer YOUR_TOKEN_HERE" \
+-H "Content-Type: application/json" \
+-d '{"amount": 500}'
+
+
+Response
+
+{
+  "message": "Deposited ₹500",
+  "newBalance": 1500
+}
+
+4️⃣ Withdraw Money
+curl -X POST http://localhost:3000/withdraw \
+-H "Authorization: Bearer YOUR_TOKEN_HERE" \
+-H "Content-Type: application/json" \
+-d '{"amount": 200}'
+
+
+Response
+
+{
+  "message": "Withdrew ₹200",
+  "newBalance": 1300
+}
