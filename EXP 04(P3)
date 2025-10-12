@@ -1,1 +1,122 @@
+// ticket_booking_system.js
+
+const express = require('express');
+const app = express();
+const PORT = 3000;
+
+app.use(express.json());
+
+// 🎫 In-memory seat data
+const TOTAL_SEATS = 10;
+let seats = [];
+
+// Initialize seat states
+for (let i = 1; i <= TOTAL_SEATS; i++) {
+  seats.push({
+    id: i,
+    status: 'available', // 'available', 'locked', or 'booked'
+    lockedBy: null,
+    lockExpireTime: null,
+  });
+}
+
+// 🧹 Helper to clear expired locks
+function clearExpiredLocks() {
+  const now = Date.now();
+  for (let seat of seats) {
+    if (seat.status === 'locked' && seat.lockExpireTime <= now) {
+      seat.status = 'available';
+      seat.lockedBy = null;
+      seat.lockExpireTime = null;
+    }
+  }
+}
+
+// 1️⃣ View all seats
+app.get('/seats', (req, res) => {
+  clearExpiredLocks();
+  res.json(seats);
+});
+
+// 2️⃣ Lock a seat temporarily
+app.post('/lock', (req, res) => {
+  const { seatId, user } = req.body;
+  clearExpiredLocks();
+
+  const seat = seats.find(s => s.id === seatId);
+  if (!seat) {
+    return res.status(404).json({ error: 'Seat not found.' });
+  }
+
+  if (seat.status === 'booked') {
+    return res.status(400).json({ error: 'Seat is already booked.' });
+  }
+
+  if (seat.status === 'locked') {
+    return res.status(400).json({ error: 'Seat is already locked by another user.' });
+  }
+
+  // Lock the seat for 1 minute
+  seat.status = 'locked';
+  seat.lockedBy = user;
+  seat.lockExpireTime = Date.now() + 60 * 1000; // 1 minute lock
+  res.json({
+    message: `✅ Seat ${seatId} locked successfully for user ${user}. Lock expires in 1 minute.`,
+    seat
+  });
+});
+
+// 3️⃣ Confirm booking
+app.post('/confirm', (req, res) => {
+  const { seatId, user } = req.body;
+  clearExpiredLocks();
+
+  const seat = seats.find(s => s.id === seatId);
+  if (!seat) {
+    return res.status(404).json({ error: 'Seat not found.' });
+  }
+
+  if (seat.status === 'booked') {
+    return res.status(400).json({ error: 'Seat is already booked.' });
+  }
+
+  if (seat.status === 'available') {
+    return res.status(400).json({ error: 'Seat is not locked yet.' });
+  }
+
+  if (seat.lockedBy !== user) {
+    return res.status(403).json({ error: 'You cannot confirm a seat locked by another user.' });
+  }
+
+  // Confirm booking
+  seat.status = 'booked';
+  seat.lockedBy = null;
+  seat.lockExpireTime = null;
+  res.json({ message: `🎉 Seat ${seatId} successfully booked by ${user}!`, seat });
+});
+
+// 4️⃣ Release lock manually (optional)
+app.post('/release', (req, res) => {
+  const { seatId, user } = req.body;
+  clearExpiredLocks();
+
+  const seat = seats.find(s => s.id === seatId);
+  if (!seat) {
+    return res.status(404).json({ error: 'Seat not found.' });
+  }
+
+  if (seat.status !== 'locked' || seat.lockedBy !== user) {
+    return res.status(400).json({ error: 'You cannot release this seat.' });
+  }
+
+  seat.status = 'available';
+  seat.lockedBy = null;
+  seat.lockExpireTime = null;
+  res.json({ message: `🔓 Seat ${seatId} released successfully.`, seat });
+});
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`🚀 Ticket Booking System running at http://localhost:${PORT}`);
+});
 
