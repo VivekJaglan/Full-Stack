@@ -1,1 +1,114 @@
+Step 1: Setup the Project
+mkdir role-based-access
+cd role-based-access
+npm init -y
+npm install express jsonwebtoken body-parser
+
+Step 2: Create server.js
+
+Copy and paste this complete, working code 👇
+
+// Import dependencies
+const express = require("express");
+const jwt = require("jsonwebtoken");
+const bodyParser = require("body-parser");
+
+const app = express();
+app.use(bodyParser.json());
+
+// Secret key for signing JWTs (store securely in production)
+const SECRET_KEY = "superSecretRBACKey123";
+
+// Mock users (for demo purposes)
+const users = [
+  { username: "admin", password: "admin123", role: "Admin" },
+  { username: "mod", password: "mod123", role: "Moderator" },
+  { username: "user", password: "user123", role: "User" },
+];
+
+// ----------------------
+//  LOGIN ROUTE
+// ----------------------
+app.post("/login", (req, res) => {
+  const { username, password } = req.body;
+
+  // Check credentials
+  const foundUser = users.find(
+    (u) => u.username === username && u.password === password
+  );
+
+  if (!foundUser) {
+    return res.status(401).json({ message: "Invalid username or password" });
+  }
+
+  // Create payload with role
+  const payload = { username: foundUser.username, role: foundUser.role };
+
+  // Sign JWT token (valid for 1 hour)
+  const token = jwt.sign(payload, SECRET_KEY, { expiresIn: "1h" });
+
+  res.json({
+    message: "Login successful!",
+    role: foundUser.role,
+    token: token,
+  });
+});
+
+// ----------------------
+//  JWT VERIFICATION MIDDLEWARE
+// ----------------------
+function verifyToken(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  if (!authHeader) return res.status(403).json({ message: "Token missing" });
+
+  const token = authHeader.split(" ")[1]; // Bearer <token>
+
+  jwt.verify(token, SECRET_KEY, (err, decoded) => {
+    if (err) return res.status(401).json({ message: "Invalid or expired token" });
+    req.user = decoded; // Attach user data to request
+    next();
+  });
+}
+
+// ----------------------
+//  ROLE AUTHORIZATION MIDDLEWARE
+// ----------------------
+function authorizeRoles(...allowedRoles) {
+  return (req, res, next) => {
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        message: "Access denied. Insufficient permissions.",
+      });
+    }
+    next();
+  };
+}
+
+// ----------------------
+//  PROTECTED ROUTES
+// ----------------------
+
+// Accessible only by Admin
+app.get("/admin/dashboard", verifyToken, authorizeRoles("Admin"), (req, res) => {
+  res.json({ message: `Welcome ${req.user.username}! This is the Admin Dashboard.` });
+});
+
+// Accessible by Moderator and Admin
+app.get("/moderator/manage", verifyToken, authorizeRoles("Moderator", "Admin"), (req, res) => {
+  res.json({ message: `Hello ${req.user.username}, this is the Moderator Management area.` });
+});
+
+// Accessible by all logged-in users
+app.get("/user/profile", verifyToken, authorizeRoles("User", "Moderator", "Admin"), (req, res) => {
+  res.json({ message: `Welcome ${req.user.username}, this is your profile page.` });
+});
+
+// Default Route
+app.get("/", (req, res) => {
+  res.send("Role-Based Access Control API is running...");
+});
+
+// Start Server
+const PORT = 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
