@@ -1,1 +1,142 @@
+Implementation Steps
+Step 1: Setup Project
+mkdir jwt-protected-api
+cd jwt-protected-api
+npm init -y
+npm install express jsonwebtoken body-parser
+
+Step 2: Create server.js
+
+Here’s the complete working code 👇
+
+// Import dependencies
+const express = require("express");
+const jwt = require("jsonwebtoken");
+const bodyParser = require("body-parser");
+
+const app = express();
+app.use(bodyParser.json());
+
+// Secret key for signing JWT
+const SECRET_KEY = "mySecretKey123"; // In real projects, store in environment variables
+
+// Hardcoded user (for simplicity)
+const user = {
+  username: "vivek",
+  password: "12345",
+};
+
+// Login Route – issues a JWT token
+app.post("/login", (req, res) => {
+  const { username, password } = req.body;
+
+  // Check credentials
+  if (username === user.username && password === user.password) {
+    // Create JWT payload
+    const payload = { username };
+
+    // Sign the token (expires in 1 hour)
+    const token = jwt.sign(payload, SECRET_KEY, { expiresIn: "1h" });
+
+    res.json({
+      message: "Login successful!",
+      token: token,
+    });
+  } else {
+    res.status(401).json({ message: "Invalid credentials" });
+  }
+});
+
+// Middleware to verify JWT
+function verifyToken(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  
+  if (!authHeader) {
+    return res.status(403).json({ message: "Authorization header missing" });
+  }
+
+  const token = authHeader.split(" ")[1]; // Format: "Bearer <token>"
+
+  jwt.verify(token, SECRET_KEY, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
+
+    // Save decoded data for later use
+    req.user = decoded;
+    next();
+  });
+}
+
+// Protected Route
+app.get("/protected", verifyToken, (req, res) => {
+  res.json({
+    message: `Welcome ${req.user.username}, you have accessed a protected route!`,
+  });
+});
+
+// Default Route
+app.get("/", (req, res) => {
+  res.send("JWT Protected API is running...");
+});
+
+// Start server
+const PORT = 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+🧠 How It Works
+
+Login
+
+Send a POST request to /login with valid credentials:
+
+{
+  "username": "vivek",
+  "password": "12345"
+}
+
+
+You’ll get a JWT token in response.
+
+Authorization Header
+
+To access /protected, include this token in the request header:
+
+Authorization: Bearer <your-token-here>
+
+
+JWT Verification
+
+The verifyToken middleware checks the token.
+
+If valid → proceeds to protected route.
+
+If invalid or missing → returns 401/403 error.
+
+🧪 Testing
+✅ 1. Successful Login
+
+POST: http://localhost:5000/login
+Body:
+
+{
+  "username": "vivek",
+  "password": "12345"
+}
+
+
+Response:
+
+{
+  "message": "Login successful!",
+  "token": "<your_generated_jwt>"
+}
+
+✅ 2. Access Protected Route
+
+GET: http://localhost:5000/protected
+Header:
+
+Authorization: Bearer <your_generated_jwt>
+
 
