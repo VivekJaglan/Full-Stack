@@ -1,1 +1,106 @@
+Task Steps
+Step 1: Create the Component
+
+Create a file named LoginForm.js in your React project.
+
+Step 2: Import Required Tools
+
+Import useState from React.
+
+Step 3: Build the Login Form Component
+
+Here’s the complete working code:
+import React, { useState } from "react";
+
+function LoginForm() {
+  // Step 1: Declare state variables
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  // Step 2: Handle form submission
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    // Step 3: Basic validation
+    if (!username || !password) {
+      setError("Both fields are required!");
+      return;
+    }
+
+    // Step 4: Clear error and log values
+    setError("");
+    console.log("Username:", username);
+    console.log("Password:", password);
+
+    // (Optional) Reset form fields
+    setUsername("");
+    setPassword("");
+  };
+
+  return (
+    <div style={styles.container}>
+      <h2>Login Form</h2>
+      <form onSubmit={handleSubmit} style={styles.form}>
+        <input
+          type="text"
+          placeholder="Enter username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          style={styles.input}
+        />
+        <input
+          type="password"
+          placeholder="Enter password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={styles.input}
+        />
+
+        {error && <p style={styles.error}>{error}</p>}
+
+        <button type="submit" style={styles.button}>
+          Login
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// Inline styles (for simplicity)
+const styles = {
+  container: {
+    width: "300px",
+    margin: "50px auto",
+    textAlign: "center",
+    border: "1px solid #ccc",
+    borderRadius: "10px",
+    padding: "20px",
+    boxShadow: "0 0 10px rgba(0,0,0,0.1)",
+  },
+  form: {
+    display: "flex",
+    flexDirection: "column",
+  },
+  input: {
+    marginBottom: "10px",
+    padding: "8px",
+    borderRadius: "5px",
+    border: "1px solid #ccc",
+  },
+  button: {
+    padding: "8px",
+    borderRadius: "5px",
+    border: "none",
+    backgroundColor: "#4CAF50",
+    color: "white",
+    cursor: "pointer",
+  },
+  error: {
+    color: "red",
+    fontSize: "14px",
+  },
+};
+
+export default LoginForm;
 
