@@ -1,0 +1,428 @@
+
+
+## Folder layout
+
+```
+todo-app/
+├── backend/
+│   ├── package.json
+│   ├── server.js
+│   ├── config/db.js
+│   ├── models/Todo.js
+│   ├── controllers/todoController.js
+│   └── routes/todoRoutes.js
+├── frontend/
+│   ├── package.json
+│   ├── public/index.html
+│   └── src/
+│       ├── index.js
+│       ├── App.jsx
+│       ├── api.js
+│       ├── styles.css
+│       └── components/
+│           ├── TodoForm.jsx
+│           ├── TodoList.jsx
+│           └── TodoItem.jsx
+└── README.md
+```
+
+---
+
+## Backend
+
+### backend/package.json
+
+```json
+{
+  "name": "todo-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "mongoose": "^7.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}
+```
+
+### backend/.env (example)
+
+```
+PORT=5000
+MONGO_URI=mongodb://localhost:27017/todo_app
+```
+
+*(If using MongoDB Atlas, replace MONGO_URI with the Atlas connection string.)*
+
+### backend/config/db.js
+
+```js
+const mongoose = require('mongoose');
+
+const connectDB = async (mongoURI) => {
+  try {
+    await mongoose.connect(mongoURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log('MongoDB connected');
+  } catch (err) {
+    console.error(err.message);
+    process.exit(1);
+  }
+};
+
+module.exports = connectDB;
+```
+
+### backend/models/Todo.js
+
+```js
+const mongoose = require('mongoose');
+
+const TodoSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true },
+    completed: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model('Todo', TodoSchema);
+```
+
+### backend/controllers/todoController.js
+
+```js
+const Todo = require('../models/Todo');
+
+exports.getTodos = async (req, res) => {
+  try {
+    const todos = await Todo.find().sort({ createdAt: -1 });
+    res.json(todos);
+  } catch (err) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+};
+
+exports.createTodo = async (req, res) => {
+  try {
+    const { title } = req.body;
+    if (!title) return res.status(400).json({ message: 'Title is required' });
+    const newTodo = new Todo({ title });
+    const saved = await newTodo.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+};
+
+exports.updateTodo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    const todo = await Todo.findByIdAndUpdate(id, updates, { new: true });
+    if (!todo) return res.status(404).json({ message: 'Todo not found' });
+    res.json(todo);
+  } catch (err) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+};
+
+exports.deleteTodo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const removed = await Todo.findByIdAndDelete(id);
+    if (!removed) return res.status(404).json({ message: 'Todo not found' });
+    res.json({ message: 'Deleted', id: removed._id });
+  } catch (err) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+};
+```
+
+### backend/routes/todoRoutes.js
+
+```js
+const express = require('express');
+const router = express.Router();
+const controller = require('../controllers/todoController');
+
+router.get('/', controller.getTodos);
+router.post('/', controller.createTodo);
+router.put('/:id', controller.updateTodo);
+router.delete('/:id', controller.deleteTodo);
+
+module.exports = router;
+```
+
+### backend/server.js
+
+```js
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const path = require('path');
+
+dotenv.config();
+
+const connectDB = require('./config/db');
+const todoRoutes = require('./routes/todoRoutes');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// connect DB
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/todo_app';
+connectDB(MONGO_URI);
+
+// routes
+app.use('/api/todos', todoRoutes);
+
+// health
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+```
+
+---
+
+## Frontend
+
+> Assumes `create-react-app` style setup. You can create it with `npx create-react-app frontend` and then replace files below.
+
+### frontend/package.json
+
+```json
+{
+  "name": "todo-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-scripts": "5.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "proxy": "http://localhost:5000"
+}
+```
+
+### frontend/public/index.html
+
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Todo App</title>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
+```
+
+### frontend/src/index.js
+
+```js
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './styles.css';
+
+const container = document.getElementById('root');
+const root = createRoot(container);
+root.render(<App />);
+```
+
+### frontend/src/api.js
+
+```js
+// small wrapper for API calls
+export const fetchTodos = () => fetch('/api/todos').then(r => r.json());
+export const createTodo = (title) => fetch('/api/todos', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ title }),
+}).then(r => r.json());
+export const updateTodo = (id, updates) => fetch(`/api/todos/${id}`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(updates),
+}).then(r => r.json());
+export const deleteTodo = (id) => fetch(`/api/todos/${id}`, { method: 'DELETE' }).then(r => r.json());
+```
+
+### frontend/src/styles.css
+
+```css
+:root{ --bg:#f3f4f6; --card:#fff; --accent:#2563eb }
+body{ font-family: Inter, system-ui, Arial; background:var(--bg); margin:0; padding:20px }
+.container{ max-width:700px; margin:0 auto }
+.card{ background:var(--card); padding:18px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.06) }
+h1{ margin:0 0 12px }
+.form-row{ display:flex; gap:8px; margin-bottom:12px }
+input[type=text]{ flex:1; padding:10px; border-radius:8px; border:1px solid #ddd }
+button{ padding:10px 14px; border-radius:8px; border:0; cursor:pointer }
+.btn-primary{ background:var(--accent); color:#fff }
+.todo-list{ list-style:none; padding:0; margin:0 }
+.todo-item{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:8px; border:1px solid #f0f0f0; margin-bottom:8px }
+.todo-left{ display:flex; gap:10px; align-items:center }
+.todo-title.completed{ text-decoration:line-through; color:#6b7280 }
+.small{ font-size:12px; color:#6b7280 }
+.btn-ghost{ background:transparent; border:1px solid #eee }
+```
+
+### frontend/src/components/TodoForm.jsx
+
+```jsx
+import React, { useState } from 'react';
+
+export default function TodoForm({ onAdd }) {
+  const [title, setTitle] = useState('');
+  const submit = async (e) => {
+    e.preventDefault();
+    const value = title.trim();
+    if (!value) return;
+    await onAdd(value);
+    setTitle('');
+  };
+  return (
+    <form className="form-row" onSubmit={submit}>
+      <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Add a new todo" type="text" />
+      <button className="btn-primary">Add</button>
+    </form>
+  );
+}
+```
+
+### frontend/src/components/TodoItem.jsx
+
+```jsx
+import React from 'react';
+
+export default function TodoItem({ todo, onToggle, onDelete, onEdit }) {
+  return (
+    <li className="todo-item">
+      <div className="todo-left">
+        <input type="checkbox" checked={todo.completed} onChange={() => onToggle(todo)} />
+        <div>
+          <div className={`todo-title ${todo.completed ? 'completed' : ''}`}>{todo.title}</div>
+          <div className="small">{new Date(todo.createdAt).toLocaleString()}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn-ghost" onClick={() => {
+          const newTitle = prompt('Edit todo title', todo.title);
+          if (newTitle !== null) onEdit(todo, newTitle);
+        }}>Edit</button>
+        <button className="btn-ghost" onClick={() => {
+          if (confirm('Delete this todo?')) onDelete(todo);
+        }}>Delete</button>
+      </div>
+    </li>
+  );
+}
+```
+
+### frontend/src/components/TodoList.jsx
+
+```jsx
+import React from 'react';
+import TodoItem from './TodoItem';
+
+export default function TodoList({ todos, onToggle, onDelete, onEdit }) {
+  if (!todos.length) return <p className="small">No todos yet — add one above ✨</p>;
+  return (
+    <ul className="todo-list">
+      {todos.map(t => (
+        <TodoItem key={t._id} todo={t} onToggle={onToggle} onDelete={onDelete} onEdit={onEdit} />
+      ))}
+    </ul>
+  );
+}
+```
+
+### frontend/src/App.jsx
+
+```jsx
+import React, { useEffect, useState } from 'react';
+import { fetchTodos, createTodo, updateTodo, deleteTodo } from './api';
+import TodoForm from './components/TodoForm';
+import TodoList from './components/TodoList';
+
+export default function App(){
+  const [todos, setTodos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const load = async () => {
+    setLoading(true);
+    try{
+      const data = await fetchTodos();
+      setTodos(data);
+    }catch(e){ console.error(e) }
+    setLoading(false);
+  };
+
+  const handleAdd = async (title) => {
+    try{
+      const newTodo = await createTodo(title);
+      setTodos(prev => [newTodo, ...prev]);
+    }catch(e){ console.error(e) }
+  };
+
+  const handleToggle = async (todo) => {
+    try{
+      const updated = await updateTodo(todo._id, { completed: !todo.completed });
+      setTodos(prev => prev.map(p => p._id === updated._id ? updated : p));
+    }catch(e){ console.error(e) }
+  };
+
+  const handleDelete = async (todo) => {
+    try{
+      await deleteTodo(todo._id);
+      setTodos(prev => prev.filter(p => p._id !== todo._id));
+    }catch(e){ console.error(e) }
+  };
+
+  const handleEdit = async (todo, newTitle) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return alert('Title cannot be empty');
+    try{
+      const updated = await updateTodo(todo._id, { title: trimmed });
+      setTodos(prev => prev.map(p => p._id === updated._id ? updated : p));
+    }catch(e){ console.error(e) }
+  };
+
+  return (
+    <div className="container">
+      <div className="card">
+        <h1>Todo App</h1>
+        <TodoForm onAdd={handleAdd} />
+        {loading ? <p className="small">Loading...</p> : <TodoList todos={todos} onToggle={handleToggle} onDelete={handleDelete} onEdit={handleEdit} />}
+      </div>
+    </div>
+  );
+}
+```
