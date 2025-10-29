@@ -1,0 +1,59 @@
+ package.json (important deps)
+
+{
+  "dependencies": {
+    "express": "^4.18.2",
+    "bcrypt": "^5.1.0",
+    "jsonwebtoken": "^9.0.0",
+    "pg": "^8.10.0",
+    "@aws-sdk/client-s3": "^3.x",
+    "@aws-sdk/s3-request-presigner": "^3.x",
+    "uuid": "^9.0.0",
+    "dotenv": "^16.0.0"
+  }
+}
+
+
+.env (example)
+
+PORT=4000
+DATABASE_URL=postgres://user:pass@host:5432/dbname
+JWT_ACCESS_SECRET=supersecretaccess
+JWT_REFRESH_SECRET=supersecretrefresh
+AWS_REGION=ap-south-1
+S3_BUCKET=my-app-bucket
+
+
+Express + presign endpoint (abridged)
+
+// index.js
+require('dotenv').config();
+const express = require('express');
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { v4: uuidv4 } = require('uuid');
+
+const s3 = new S3Client({ region: process.env.AWS_REGION });
+const app = express();
+app.use(express.json());
+
+// Presign
+app.get('/api/uploads/presign', async (req, res) => {
+  const { filename, contentType } = req.query;
+  if (!filename || !contentType) return res.status(400).send({ error: 'filename & contentType required' });
+
+  const key = `uploads/${uuidv4()}-${filename}`;
+  const command = new PutObjectCommand({
+    Bucket: process.env.S3_BUCKET,
+    Key: key,
+    ContentType: contentType,
+    ACL: 'public-read'
+  });
+  const url = await getSignedUrl(s3, command, { expiresIn: 60 * 5 }); // 5 minutes
+  const publicUrl = `https://${process.env.S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+  res.send({ uploadUrl: url, publicUrl, key });
+});
+
+// ...auth and other routes here
+
+app.listen(process.env.PORT || 4000, ()=>console.log('listening'));
