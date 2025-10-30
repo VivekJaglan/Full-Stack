@@ -1,0 +1,50 @@
+person.js
+// Base Class
+class Person {
+  constructor(name, age) {
+    this.name = name;
+    this.age = age;
+  }
+
+  displayInfo() {
+    return `Name: ${this.name}, Age: ${this.age}`;
+  }
+}
+
+// Subclass: Student
+class Student extends Person {
+  constructor(name, age, course) {
+    super(name, age); // Call the parent class constructor
+    this.course = course;
+  }
+
+  // Overriding displayInfo()
+  displayInfo() {
+    return `${super.displayInfo()}, Course: ${this.course}`;
+  }
+}
+
+// Subclass: Teacher
+class Teacher extends Person {
+  constructor(name, age, subject) {
+    super(name, age);
+    this.subject = subject;
+  }
+
+  // Overriding displayInfo()
+  displayInfo() {
+    return `${super.displayInfo()}, Subject: ${this.subject}`;
+  }
+}
+
+// Creating instances
+const student1 = new Student("Vivek", 22, "Computer Science");
+const teacher1 = new Teacher("Dr. Sharma", 45, "Physics");
+
+// Demonstrating polymorphism (same method behaves differently)
+console.log(student1.displayInfo());
+console.log(teacher1.displayInfo());
+
+🧩 Output
+Name: Vivek, Age: 22, Course: Computer Science
+Name: Dr. Sharma, Age: 45, Subject: Physics
