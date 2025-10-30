@@ -1,0 +1,36 @@
+ProductCard.js
+import React from "react";
+
+const ProductCard = ({ name, price, inStock }) => {
+  return (
+    <div className="border rounded-2xl shadow-md p-4 w-64 text-center bg-white hover:shadow-lg transition-all">
+      <h2 className="text-xl font-semibold mb-2 text-gray-800">{name}</h2>
+      <p className="text-gray-600 mb-1">Price: ₹{price}</p>
+      <p
+        className={`font-medium ${
+          inStock ? "text-green-600" : "text-red-600"
+        }`}
+      >
+        {inStock ? "In Stock" : "Out of Stock"}
+      </p>
+    </div>
+  );
+};
+
+export default ProductCard;
+
+⚙️ App.js (Example Usage)
+import React from "react";
+import ProductCard from "./ProductCard";
+
+const App = () => {
+  return (
+    <div className="flex flex-wrap gap-6 justify-center p-10 bg-gray-50 min-h-screen">
+      <ProductCard name="Wireless Mouse" price={799} inStock={true} />
+      <ProductCard name="Mechanical Keyboard" price={2499} inStock={false} />
+      <ProductCard name="Noise Cancelling Headphones" price={5999} inStock={true} />
+    </div>
+  );
+};
+
+export default App;
